@@ -6,7 +6,7 @@
 ## DefaultState: enabled
 ## SavedVariables: SpamAddonDB
 ## X-Category: Chat & Communication
-## X-Website: https://github.com/yourusername/SpamAddon
+## X-Website: https://github.com/MaleSyrup/SpamAddon
 ## X-License: MIT
 ## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
 
@@ -19,9 +19,9 @@ Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 # Media files
 Media\SpamIcon.lua
 
-# Main addon file - core functionality
-SpamAddon.lua
-# Additional features
-SpamAddonFeatures.lua
 # UI components and interface
 SpamAddonUI.lua 
+# Additional features
+SpamAddonFeatures.lua
+# Main addon file - core functionality
+SpamAddon.lua 

@@ -71,30 +71,48 @@ local errorMessages = {
 ]]--
 eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
     if event == "ADDON_LOADED" and arg1 == addonName then
-        SpamAddon:Initialize()
+        local success, errorMsg = pcall(function()
+            SpamAddon:Initialize()
+        end)
+        if not success then
+            print("|cFFFF0000SpamAddon Error during initialization: |r" .. tostring(errorMsg))
+            -- Try to register slash commands even if other initialization fails
+            pcall(function() SpamAddon:RegisterSlashCommands() end)
+        end
     elseif event == "PLAYER_LOGIN" then
         -- Delay UI creation until player is fully logged in
         C_Timer.After(1, function() 
             if isLoaded then
-                SpamAddon:SetupUI()
-                -- Initialize additional features after UI is created
-                if SpamAddon.Features and SpamAddon.Features.Init then
-                    SpamAddon.Features.Init()
+                local success, errorMsg = pcall(function()
+                    SpamAddon:SetupUI()
+                    -- Initialize additional features after UI is created
+                    if SpamAddon.Features and SpamAddon.Features.Init then
+                        SpamAddon.Features.Init()
+                    end
+                end)
+                if not success then
+                    print("|cFFFF0000SpamAddon Error during UI setup: |r" .. tostring(errorMsg))
                 end
-                -- Setup tooltips if available
+                
+                -- Setup tooltips if available - in separate pcall to ensure one failure doesn't prevent others
                 if SpamAddon.Features and SpamAddon.Features.SetupTooltips then
                     C_Timer.After(0.5, function()
-                        SpamAddon.Features.SetupTooltips()
+                        local tooltipSuccess, tooltipError = pcall(function()
+                            SpamAddon.Features.SetupTooltips()
+                        end)
+                        if not tooltipSuccess then
+                            print("|cFFFF0000SpamAddon Error setting up tooltips: |r" .. tostring(tooltipError))
+                        end
                     end)
                 end
             end
         end)
     elseif event == "PLAYER_LOGOUT" then
         -- Make sure timer is canceled when logging out
-        SpamAddon:StopSpam()
+        pcall(function() SpamAddon:StopSpam() end)
     elseif event == "CHAT_MSG_SYSTEM" then
         -- Check if the system message indicates an error with our messaging
-        SpamAddon:CheckChatError(arg1)
+        pcall(function() SpamAddon:CheckChatError(arg1) end)
     end
 end)
 
@@ -207,16 +225,34 @@ function SpamAddon:Initialize()
         end
     end
     
-    -- Validate saved settings
-    self:ValidateSettings()
+    -- Validate saved settings with error handling
+    local success, errorMsg = pcall(function()
+        self:ValidateSettings()
+    end)
+    if not success then
+        print("|cFFFF0000SpamAddon Error validating settings: |r" .. tostring(errorMsg))
+        -- If validation fails, try to reset to defaults
+        SpamAddonDB = CopyTable(defaults)
+    end
     
-    -- Register slash commands
-    self:RegisterSlashCommands()
+    -- Register slash commands with error handling
+    local cmdSuccess, cmdError = pcall(function()
+        self:RegisterSlashCommands()
+    end)
+    if not cmdSuccess then
+        print("|cFFFF0000SpamAddon Error registering slash commands: |r" .. tostring(cmdError))
+    end
     
     -- Restore active state if it was enabled
     if SpamAddonDB.enabled then
         C_Timer.After(5, function() 
-            SpamAddon:StartSpam()
+            local startSuccess, startError = pcall(function()
+                SpamAddon:StartSpam()
+            end)
+            if not startSuccess then
+                print("|cFFFF0000SpamAddon Error starting spam timer: |r" .. tostring(startError))
+                SpamAddonDB.enabled = false
+            end
         end)
     end
     
@@ -654,34 +690,74 @@ function SpamAddon:RegisterSlashCommands()
         
         -- Process commands
         if command == "show" or command == "" then
-            SpamAddon.UI.Show()
+            if SpamAddon.UI and SpamAddon.UI.Show then
+                SpamAddon.UI.Show()
+            else
+                print("|cFFFF9900SpamAddon: UI not available yet.|r")
+            end
         elseif command == "hide" then
-            SpamAddon.UI.Hide()
+            if SpamAddon.UI and SpamAddon.UI.Hide then
+                SpamAddon.UI.Hide()
+            else
+                print("|cFFFF9900SpamAddon: UI not available yet.|r")
+            end
         elseif command == "toggle" then
-            SpamAddon.API.ToggleSpam()
+            if SpamAddon.API and SpamAddon.API.ToggleSpam then
+                SpamAddon.API.ToggleSpam()
+            else
+                print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+            end
         elseif command == "start" then
-            SpamAddon.API.StartSpam()
+            if SpamAddon.API and SpamAddon.API.StartSpam then
+                SpamAddon.API.StartSpam()
+            else
+                print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+            end
         elseif command == "stop" then
-            SpamAddon.API.StopSpam()
+            if SpamAddon.API and SpamAddon.API.StopSpam then
+                SpamAddon.API.StopSpam()
+            else
+                print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+            end
         elseif command == "message" and arg then
-            SpamAddon.API.SetMessage(arg)
-            print("|cFF00FF00SpamAddon: Message set.|r")
+            if SpamAddon.API and SpamAddon.API.SetMessage then
+                SpamAddon.API.SetMessage(arg)
+                print("|cFF00FF00SpamAddon: Message set.|r")
+            else
+                print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+            end
         elseif command == "channel" and arg then
-            SpamAddon.API.SetChannel(arg:upper())
-            print("|cFF00FF00SpamAddon: Channel set to " .. arg:upper() .. ".|r")
+            if SpamAddon.API and SpamAddon.API.SetChannel then
+                SpamAddon.API.SetChannel(arg:upper())
+                print("|cFF00FF00SpamAddon: Channel set to " .. arg:upper() .. ".|r")
+            else
+                print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+            end
         elseif command == "whisper" and arg then
-            SpamAddon.API.SetWhisperTarget(arg)
-            print("|cFF00FF00SpamAddon: Whisper target set to " .. arg .. ".|r")
+            if SpamAddon.API and SpamAddon.API.SetWhisperTarget then
+                SpamAddon.API.SetWhisperTarget(arg)
+                print("|cFF00FF00SpamAddon: Whisper target set to " .. arg .. ".|r")
+            else
+                print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+            end
         elseif command == "interval" and arg then
             local interval = tonumber(arg)
             if interval and interval >= 5 then
-                SpamAddon.API.SetInterval(interval)
-                print("|cFF00FF00SpamAddon: Interval set to " .. interval .. " seconds.|r")
+                if SpamAddon.API and SpamAddon.API.SetInterval then
+                    SpamAddon.API.SetInterval(interval)
+                    print("|cFF00FF00SpamAddon: Interval set to " .. interval .. " seconds.|r")
+                else
+                    print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+                end
             else
                 print("|cFFFF0000SpamAddon: Invalid interval. Must be at least 5 seconds.|r")
             end
         elseif command == "status" then
-            SpamAddon.API.PrintStatus()
+            if SpamAddon.API and SpamAddon.API.PrintStatus then
+                SpamAddon.API.PrintStatus()
+            else
+                print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+            end
         elseif command == "help" then
             -- Display help information
             print("|cFF00FF00SpamAddon v" .. SpamAddon.version .. " Help:|r")
@@ -692,7 +768,7 @@ function SpamAddon:RegisterSlashCommands()
             print("/spam stop - Stop spam timer")
             print("/spam message <text> - Set the message")
             print("/spam channel <channel> - Set the channel")
-            print("/spam whisper <name> - Set whisper target")
+            print("/spam whisper <n> - Set whisper target")
             print("/spam interval <seconds> - Set timer interval (5+ seconds)")
             print("/spam status - Show current status")
             print("/spam minimap - Toggle minimap button")
@@ -701,11 +777,13 @@ function SpamAddon:RegisterSlashCommands()
         else
             -- Check for extra slash commands
             local handled = false
-            for cmd, handler in pairs(extraSlashCommands) do
-                if command == cmd:lower() then
-                    handler(arg)
-                    handled = true
-                    break
+            if extraSlashCommands then
+                for cmd, handler in pairs(extraSlashCommands) do
+                    if command == cmd:lower() then
+                        handler(arg)
+                        handled = true
+                        break
+                    end
                 end
             end
             
@@ -762,7 +840,14 @@ end
 -- Function to setup the UI (called from UI file)
 function SpamAddon:SetupUI()
     if SpamAddon.UI and SpamAddon.UI.Create then
-        SpamAddon.UI.Create()
+        local success, errorMsg = pcall(function()
+            SpamAddon.UI.Create()
+        end)
+        if not success then
+            print("|cFFFF0000SpamAddon Error creating UI: |r" .. tostring(errorMsg))
+        end
+    else
+        print("|cFFFF9900SpamAddon: UI components not found or not fully loaded.|r")
     end
 end
 

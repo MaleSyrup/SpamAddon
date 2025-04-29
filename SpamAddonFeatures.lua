@@ -221,54 +221,113 @@ end
     Uses LibDataBroker and LibDBIcon for implementation
 ]]--
 function SpamAddon.Features.InitMinimapButton()
-    -- Only setup if we have the required libraries
-    if not LDB or not LibDBIcon then
-        print("|cFFFF9900SpamAddon: LibDataBroker or LibDBIcon not found. Minimap button disabled.|r")
+    -- Check if LibStub exists first
+    local libsFound = true
+    if not LibStub then
+        print("|cFFFF9900SpamAddon: LibStub library not found. Minimap button disabled.|r")
+        libsFound = false
+    end
+    
+    -- Only try to get libraries if LibStub exists
+    local LDB = libsFound and LibStub:GetLibrary("LibDataBroker-1.1", true) or nil
+    local LibDBIcon = libsFound and LibStub:GetLibrary("LibDBIcon-1.0", true) or nil
+    
+    -- Check if both libraries were found
+    if not LDB then
+        print("|cFFFF9900SpamAddon: LibDataBroker-1.1 library not found. Minimap button disabled.|r")
         return
     end
     
-    -- Initialize saved variable for minimap button
+    if not LibDBIcon then
+        print("|cFFFF9900SpamAddon: LibDBIcon-1.0 library not found. Minimap button disabled.|r")
+        return
+    end
+    
+    -- Initialize saved variable for minimap button with error handling
+    local success, errorMsg = pcall(function()
+        -- Initialize saved variable for minimap button
+        if not SpamAddonDB.minimap then
+            SpamAddonDB.minimap = {
+                hide = false
+            }
+        end
+        
+        -- Create the LDB launcher
+        local minimapLauncher = LDB:NewDataObject("SpamAddon", {
+            type = "launcher",
+            text = "SpamAddon",
+            icon = "Interface\\Icons\\INV_Letter_15",
+            OnClick = function(self, button)
+                if button == "LeftButton" then
+                    if SpamAddon.UI and SpamAddon.UI.Toggle then
+                        SpamAddon.UI.Toggle()
+                    else
+                        print("|cFFFF9900SpamAddon: UI not available yet.|r")
+                    end
+                elseif button == "RightButton" then
+                    if SpamAddon.API and SpamAddon.API.ToggleSpam then
+                        SpamAddon.API.ToggleSpam()
+                    else
+                        print("|cFFFF9900SpamAddon: API functionality not available yet.|r")
+                    end
+                end
+            end,
+            OnTooltipShow = function(tooltip)
+                if not tooltip or not tooltip.AddLine then return end
+                tooltip:AddLine(SpamAddon.L and SpamAddon.L("ADDON_TOOLTIP") or "SpamAddon\nClick: Toggle UI\nRight-click: Toggle spam")
+            end,
+        })
+        
+        -- Register with LibDBIcon
+        LibDBIcon:Register("SpamAddon", minimapLauncher, SpamAddonDB.minimap)
+    end)
+    
+    if not success then
+        print("|cFFFF0000SpamAddon Error setting up minimap button: |r" .. tostring(errorMsg))
+    else
+        print("|cFF00FF00SpamAddon: Minimap button initialized.|r")
+    end
+end
+
+-- Toggle minimap button visibility
+function SpamAddon.Features.ToggleMinimapButton()
+    -- Check if LibStub exists first
+    if not LibStub then
+        print("|cFFFF9900SpamAddon: LibStub library not found. Cannot toggle minimap button.|r")
+        return
+    end
+    
+    -- Try to get LibDBIcon
+    local LibDBIcon = LibStub:GetLibrary("LibDBIcon-1.0", true)
+    
+    -- Only toggle if we have the required library
+    if not LibDBIcon then 
+        print("|cFFFF9900SpamAddon: LibDBIcon-1.0 library not found. Cannot toggle minimap button.|r")
+        return 
+    end
+    
+    -- Check if we have initialized minimap settings
     if not SpamAddonDB.minimap then
+        print("|cFFFF9900SpamAddon: Minimap settings not initialized. Initializing now.|r")
         SpamAddonDB.minimap = {
             hide = false
         }
     end
     
-    -- Create the LDB launcher
-    local minimapLauncher = LDB:NewDataObject("SpamAddon", {
-        type = "launcher",
-        text = "SpamAddon",
-        icon = "Interface\\Icons\\INV_Letter_15",
-        OnClick = function(self, button)
-            if button == "LeftButton" then
-                SpamAddon.UI.Toggle()
-            elseif button == "RightButton" then
-                SpamAddon.API.ToggleSpam()
-            end
-        end,
-        OnTooltipShow = function(tooltip)
-            if not tooltip or not tooltip.AddLine then return end
-            tooltip:AddLine(SpamAddon.L("ADDON_TOOLTIP"))
-        end,
-    })
+    local success, errorMsg = pcall(function()
+        SpamAddonDB.minimap.hide = not SpamAddonDB.minimap.hide
+        
+        if SpamAddonDB.minimap.hide then
+            LibDBIcon:Hide("SpamAddon")
+            print("|cFFFF9900SpamAddon: Minimap button hidden.|r")
+        else
+            LibDBIcon:Show("SpamAddon")
+            print("|cFF00FF00SpamAddon: Minimap button shown.|r")
+        end
+    end)
     
-    -- Register with LibDBIcon
-    LibDBIcon:Register("SpamAddon", minimapLauncher, SpamAddonDB.minimap)
-end
-
--- Toggle minimap button visibility
-function SpamAddon.Features.ToggleMinimapButton()
-    -- Only toggle if we have the required libraries
-    if not LibDBIcon then return end
-    
-    SpamAddonDB.minimap.hide = not SpamAddonDB.minimap.hide
-    
-    if SpamAddonDB.minimap.hide then
-        LibDBIcon:Hide("SpamAddon")
-        print("|cFFFF9900SpamAddon: Minimap button hidden.|r")
-    else
-        LibDBIcon:Show("SpamAddon")
-        print("|cFF00FF00SpamAddon: Minimap button shown.|r")
+    if not success then
+        print("|cFFFF0000SpamAddon Error toggling minimap button: |r" .. tostring(errorMsg))
     end
 end
 
@@ -287,26 +346,43 @@ end
 
 -- Initialize additional features
 function SpamAddon.Features.Init()
-    -- Add minimap toggle to slash commands
-    SpamAddon.RegisterExtraSlashCommand("minimap", function()
-        SpamAddon.Features.ToggleMinimapButton()
-    end)
-    
-    -- Add sound toggle to slash commands
-    SpamAddon.RegisterExtraSlashCommand("sound", function()
-        SpamAddonDB.soundEnabled = not SpamAddonDB.soundEnabled
-        if SpamAddonDB.soundEnabled then
-            print("|cFF00FF00SpamAddon: Sound effects enabled.|r")
+    -- Add slash commands with error handling
+    local success, error = pcall(function()
+        -- Add minimap toggle to slash commands
+        if SpamAddon.RegisterExtraSlashCommand then
+            SpamAddon.RegisterExtraSlashCommand("minimap", function()
+                SpamAddon.Features.ToggleMinimapButton()
+            end)
+            
+            -- Add sound toggle to slash commands
+            SpamAddon.RegisterExtraSlashCommand("sound", function()
+                SpamAddonDB.soundEnabled = not SpamAddonDB.soundEnabled
+                if SpamAddonDB.soundEnabled then
+                    print("|cFF00FF00SpamAddon: Sound effects enabled.|r")
+                else
+                    print("|cFFFF9900SpamAddon: Sound effects disabled.|r")
+                end
+            end)
         else
-            print("|cFFFF9900SpamAddon: Sound effects disabled.|r")
+            print("|cFFFF9900SpamAddon: RegisterExtraSlashCommand not available. Additional slash commands disabled.|r")
         end
     end)
     
+    if not success then
+        print("|cFFFF0000SpamAddon Error registering extra slash commands: |r" .. tostring(error))
+    end
+    
     -- Initialize sound setting if not present
-    if SpamAddonDB.soundEnabled == nil then
+    if SpamAddonDB and SpamAddonDB.soundEnabled == nil then
         SpamAddonDB.soundEnabled = true
     end
     
-    -- Setup the minimap button
-    SpamAddon.Features.InitMinimapButton()
+    -- Setup the minimap button with error handling
+    local buttonSuccess, buttonError = pcall(function()
+        SpamAddon.Features.InitMinimapButton()
+    end)
+    
+    if not buttonSuccess then
+        print("|cFFFF0000SpamAddon Error initializing minimap button: |r" .. tostring(buttonError))
+    end
 end 

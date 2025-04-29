@@ -17,11 +17,29 @@ SpamAddon is a World of Warcraft addon that allows players to automate sending t
 
 ## Installation
 
-1. Download the latest release of SpamAddon.
-2. Extract the contents to your `World of Warcraft\_retail_\Interface\AddOns` directory.
-3. Ensure the extracted folder is named "SpamAddon".
-4. Restart World of Warcraft or reload your UI (`/reload`).
-5. SpamAddon should now appear in your addon list and be ready to use.
+1. Download the latest release of SpamAddon from the [releases page](https://github.com/MaleSyrup/SpamAddon/releases).
+2. Extract the ZIP file contents to your World of Warcraft addon directory:
+   - Retail WoW: `World of Warcraft\_retail_\Interface\AddOns\`
+   - Classic WoW: `World of Warcraft\_classic_\Interface\AddOns\`
+3. **IMPORTANT**: Ensure the folder structure is correct:
+   - The path should be: `Interface\AddOns\SpamAddon\SpamAddon.toc`
+   - Make sure the folder name is exactly "SpamAddon" (not "SpamAddon-main" or "SpamAddon-1.0")
+4. Verify all required libraries are present in the Libs folder:
+   - LibStub
+   - CallbackHandler-1.0
+   - LibDataBroker-1.1
+   - LibDBIcon-1.0
+5. Restart World of Warcraft or reload your UI (`/reload`).
+6. The addon should appear in your addon list and be enabled by default.
+
+### Troubleshooting Installation
+
+If the addon is not working properly after installation:
+
+1. **Check folder structure**: Use `/run print(IsAddOnLoaded("SpamAddon"))` in-game. If it returns "false", the addon folder structure is incorrect.
+2. **Verify libraries**: Ensure all libraries in the Libs folder were extracted properly.
+3. **Check error messages**: Type `/dump _G.SpamAddon` to check if the addon loaded at all.
+4. **Disable conflicting addons**: Some addons might conflict with SpamAddon's functionality.
 
 ## Usage
 
