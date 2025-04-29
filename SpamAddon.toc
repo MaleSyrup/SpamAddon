@@ -1,0 +1,27 @@
+## Interface: 100200
+## Title: SpamAddon
+## Notes: Sends predefined text messages to chat channels at regular intervals
+## Author: MaleSyrup
+## Version: 1.0
+## DefaultState: enabled
+## SavedVariables: SpamAddonDB
+## X-Category: Chat & Communication
+## X-Website: https://github.com/yourusername/SpamAddon
+## X-License: MIT
+## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
+
+# Libraries (optional)
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+# Media files
+Media\SpamIcon.lua
+
+# Main addon file - core functionality
+SpamAddon.lua
+# Additional features
+SpamAddonFeatures.lua
+# UI components and interface
+SpamAddonUI.lua 

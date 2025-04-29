@@ -1,0 +1,8 @@
+# Ignore files created by WoW
+SavedVariables/
+*.bak
+*.tmp
+
+# IDE files
+.vscode/
+.idea/ 
